@@ -1,5 +1,11 @@
 import subprocess
 import json
+from typing import List, Dict
+
+try:
+    import nmap  # type: ignore
+except Exception:
+    nmap = None
 
 
 def get_ip_addresses():
@@ -49,11 +55,46 @@ def get_running_services():
     return services
 
 
+def scan_vulnerabilities(target: str = '127.0.0.1') -> List[Dict[str, str]]:
+    """Run nmap with the vulners script and return detected vulnerabilities."""
+    if nmap is None:
+        return []
+    vulns: List[Dict[str, str]] = []
+    try:
+        nm = nmap.PortScanner()
+        nm.scan(target, arguments='-sV --script vulners')
+        for host in nm.all_hosts():
+            for proto in nm[host].all_protocols():
+                ports = nm[host][proto].keys()
+                for port in ports:
+                    script_results = nm[host][proto][port].get('script', {})
+                    if not script_results:
+                        continue
+                    out = script_results.get('vulners')
+                    if not out:
+                        continue
+                    for line in out.splitlines():
+                        parts = line.split()
+                        if len(parts) >= 3 and parts[0].startswith('CVE-'):
+                            vulns.append(
+                                {
+                                    'port': str(port),
+                                    'cve': parts[0],
+                                    'cvss': parts[1],
+                                    'link': parts[2],
+                                }
+                            )
+    except Exception:
+        pass
+    return vulns
+
+
 def main():
     data = {
         'ip_addresses': get_ip_addresses(),
         'open_ports': get_open_ports(),
         'running_services': get_running_services(),
+        'vulnerabilities': scan_vulnerabilities(),
     }
     print(json.dumps(data, indent=2))
 
