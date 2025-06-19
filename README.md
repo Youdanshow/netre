@@ -3,7 +3,7 @@ Net read - a project that scan you server and resume you all vulnerability and h
 
 ## netre.py
 
-This Python script summarizes network information on a Linux system. It prints the system's IP addresses, open ports and running services using standard command-line tools (`ip`, `ss`, `systemctl`).
+This Python script summarizes network information on the host system. On Linux it relies on `ip`, `ss` and `systemctl`. On Windows it uses `ipconfig` and `netstat`, while macOS support falls back to `ifconfig` and `lsof`.
 
 It can also scan the local host for known vulnerabilities using `nmap`'s
 `vulners` script. The vulnerability scan relies on the `nmap` command line tool
@@ -25,3 +25,11 @@ sudo apt-get install nmap python3-nmap
 
 The scan will run even if these packages are missing, but the vulnerabilities
 section will be empty.
+
+### Compatibility
+
+| Platform | IP addresses | Open ports | Services | Vulnerability scan |
+|----------|--------------|------------|----------|--------------------|
+| Linux    | `ip`         | `ss`       | `systemctl` | `nmap` |
+| Windows  | `ipconfig`   | `netstat`  | `sc`     | `nmap` |
+| macOS    | `ifconfig`   | `lsof`     | not supported | `nmap` |
