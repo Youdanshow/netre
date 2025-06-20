@@ -4,6 +4,9 @@
 #include <ctype.h>
 #include <jansson.h>
 #include <time.h>
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 #ifdef _WIN32
 #define OS_WINDOWS
@@ -15,6 +18,21 @@ const char *OS_NAME = "Darwin";
 #define OS_LINUX
 const char *OS_NAME = "Linux";
 #endif
+
+static double get_time_seconds(void) {
+#ifdef OS_WINDOWS
+    FILETIME ft;
+    GetSystemTimeAsFileTime(&ft);
+    ULARGE_INTEGER uli;
+    uli.LowPart = ft.dwLowDateTime;
+    uli.HighPart = ft.dwHighDateTime;
+    return uli.QuadPart / 10000000.0;
+#else
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return ts.tv_sec + ts.tv_nsec / 1e9;
+#endif
+}
 
 static char *run_command(const char *cmd) {
     FILE *fp = popen(cmd, "r");
@@ -622,7 +640,7 @@ int main(void) {
     fprintf(stderr, "loading...\n");
     const int total = 6;
     int i = 0;
-    clock_t start = clock();
+    double start = get_time_seconds();
 
     json_object_set_new(root, "ip_addresses", get_ip_addresses());
     fprintf(stderr, "[#####                         ] %d/%d\r", ++i, total);
@@ -637,7 +655,7 @@ int main(void) {
     json_object_set_new(root, "vulnerabilities", scan_vulnerabilities("127.0.0.1"));
     fprintf(stderr, "[##############################] %d/%d\n", ++i, total);
 
-    double elapsed = (double)(clock() - start) / CLOCKS_PER_SEC;
+    double elapsed = get_time_seconds() - start;
     fprintf(stderr, "Completed in %.2f seconds\n", elapsed);
 
     json_dumpf(root, stdout, JSON_INDENT(2));
