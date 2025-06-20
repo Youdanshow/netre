@@ -72,10 +72,10 @@ the vulnerabilities list will be empty.
 ## netre.c (C version)
 This repository also includes a basic C implementation using the [Jansson](https://digip.org/jansson/) library for JSON handling.
 
-Compile it with:
+Compile it with the provided Makefile:
 
 ```bash
-gcc netre.c -o netre -ljansson
+make
 ```
 
 Run with:
