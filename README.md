@@ -68,3 +68,20 @@ the vulnerabilities list will be empty.
 | Linux    | `ip`         | `ss`       | `systemctl` | `nmap` |
 | Windows  | `ipconfig`   | `netstat`  | `sc`     | `nmap` |
 | macOS    | `ifconfig`   | `lsof`     | not supported | `nmap` |
+
+## netre.c (C version)
+This repository also includes a basic C implementation using the [Jansson](https://digip.org/jansson/) library for JSON handling.
+
+Compile it with the provided Makefile:
+
+```bash
+make
+```
+
+Run with:
+
+```bash
+./netre
+```
+
+The output format matches the Python script, but features depend on the commands available on the host.
