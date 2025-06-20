@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 #include <jansson.h>
 #include <time.h>
 
@@ -297,6 +298,263 @@ static json_t *get_running_services(void) {
     return obj;
 }
 
+static json_t *get_disk_usage(void) {
+    json_t *obj = json_object();
+    json_t *results = json_array();
+    json_object_set_new(obj, "results", results);
+    const char *cmd = "";
+#ifdef OS_LINUX
+    cmd = "df -h";
+    json_object_set_new(obj, "command", json_string(cmd));
+    if (!command_available("df")) {
+        json_object_set_new(obj, "error", json_string("df needs to be installed"));
+        return obj;
+    }
+    char *out = run_command(cmd);
+    if (!out) return obj;
+    char *saveptr_line = NULL;
+    char *line = strtok_r(out, "\n", &saveptr_line);
+    if (line) line = strtok_r(NULL, "\n", &saveptr_line); /* skip header */
+    while (line) {
+        char *parts[6];
+        int idx = 0;
+        char *saveptr_tok = NULL;
+        char *tok = strtok_r(line, " \t", &saveptr_tok);
+        while (tok && idx < 6) {
+            parts[idx++] = tok;
+            tok = strtok_r(NULL, " \t", &saveptr_tok);
+        }
+        if (idx >= 6) {
+            json_t *item = json_object();
+            json_object_set_new(item, "filesystem", json_string(parts[0]));
+            json_object_set_new(item, "size", json_string(parts[1]));
+            json_object_set_new(item, "used", json_string(parts[2]));
+            json_object_set_new(item, "available", json_string(parts[3]));
+            json_object_set_new(item, "use%", json_string(parts[4]));
+            json_object_set_new(item, "mount", json_string(parts[5]));
+            json_array_append_new(results, item);
+        }
+        line = strtok_r(NULL, "\n", &saveptr_line);
+    }
+    free(out);
+#elif defined(OS_WINDOWS)
+    cmd = "wmic logicaldisk get size,freespace,caption";
+    json_object_set_new(obj, "command", json_string(cmd));
+    if (!command_available("wmic")) {
+        json_object_set_new(obj, "error", json_string("wmic needs to be installed"));
+        return obj;
+    }
+    char *out = run_command(cmd);
+    if (!out) return obj;
+    char *saveptr_line = NULL;
+    char *line = strtok_r(out, "\n", &saveptr_line);
+    if (line) line = strtok_r(NULL, "\n", &saveptr_line); /* skip header */
+    while (line) {
+        char *parts[3];
+        int idx = 0;
+        char *saveptr_tok = NULL;
+        char *tok = strtok_r(line, " \t", &saveptr_tok);
+        while (tok && idx < 3) {
+            parts[idx++] = tok;
+            tok = strtok_r(NULL, " \t", &saveptr_tok);
+        }
+        if (idx == 3) {
+            const char *caption = parts[0];
+            long long free_i = atoll(parts[1]);
+            long long size_i = atoll(parts[2]);
+            long long used_i = size_i - free_i;
+            char usepct[32];
+            if (size_i > 0)
+                snprintf(usepct, sizeof(usepct), "%.1f%%", 100.0 * used_i / size_i);
+            else
+                strcpy(usepct, "0%");
+            char size_s[32], used_s[32], free_s[32];
+            snprintf(size_s, sizeof(size_s), "%lld", size_i);
+            snprintf(used_s, sizeof(used_s), "%lld", used_i);
+            snprintf(free_s, sizeof(free_s), "%lld", free_i);
+            json_t *item = json_object();
+            json_object_set_new(item, "filesystem", json_string(caption));
+            json_object_set_new(item, "size", json_string(size_s));
+            json_object_set_new(item, "used", json_string(used_s));
+            json_object_set_new(item, "available", json_string(free_s));
+            json_object_set_new(item, "use%", json_string(usepct));
+            json_object_set_new(item, "mount", json_string(caption));
+            json_array_append_new(results, item);
+        }
+        line = strtok_r(NULL, "\n", &saveptr_line);
+    }
+    free(out);
+#elif defined(OS_DARWIN)
+    cmd = "df -h";
+    json_object_set_new(obj, "command", json_string(cmd));
+    if (!command_available("df")) {
+        json_object_set_new(obj, "error", json_string("df needs to be installed"));
+        return obj;
+    }
+    char *out = run_command(cmd);
+    if (!out) return obj;
+    char *saveptr_line = NULL;
+    char *line = strtok_r(out, "\n", &saveptr_line);
+    if (line) line = strtok_r(NULL, "\n", &saveptr_line); /* skip header */
+    while (line) {
+        char *parts[6];
+        int idx = 0;
+        char *saveptr_tok = NULL;
+        char *tok = strtok_r(line, " \t", &saveptr_tok);
+        while (tok && idx < 6) {
+            parts[idx++] = tok;
+            tok = strtok_r(NULL, " \t", &saveptr_tok);
+        }
+        if (idx >= 6) {
+            json_t *item = json_object();
+            json_object_set_new(item, "filesystem", json_string(parts[0]));
+            json_object_set_new(item, "size", json_string(parts[1]));
+            json_object_set_new(item, "used", json_string(parts[2]));
+            json_object_set_new(item, "available", json_string(parts[3]));
+            json_object_set_new(item, "use%", json_string(parts[4]));
+            json_object_set_new(item, "mount", json_string(parts[5]));
+            json_array_append_new(results, item);
+        }
+        line = strtok_r(NULL, "\n", &saveptr_line);
+    }
+    free(out);
+#else
+    json_object_set_new(obj, "command", json_string(""));
+    json_object_set_new(obj, "error", json_string("unsupported platform"));
+#endif
+    return obj;
+}
+
+static json_t *get_memory_usage(void) {
+    json_t *obj = json_object();
+    json_t *results = json_array();
+    json_object_set_new(obj, "results", results);
+    const char *cmd = "";
+#ifdef OS_LINUX
+    cmd = "free -h";
+    json_object_set_new(obj, "command", json_string(cmd));
+    if (!command_available("free")) {
+        json_object_set_new(obj, "error", json_string("free needs to be installed"));
+        return obj;
+    }
+    char *out = run_command(cmd);
+    if (!out) return obj;
+    char *saveptr_line = NULL;
+    char *line = strtok_r(out, "\n", &saveptr_line);
+    while (line) {
+        char *lower = strdup(line);
+        for (char *p = lower; *p; ++p) *p = tolower(*p);
+        if (strncmp(lower, "mem:", 4) == 0 || strncmp(lower, "mem ", 4) == 0) {
+            char *parts[4];
+            int idx = 0;
+            char *saveptr_tok = NULL;
+            char *tok = strtok_r(line, " \t", &saveptr_tok);
+            while (tok && idx < 4) {
+                parts[idx++] = tok;
+                tok = strtok_r(NULL, " \t", &saveptr_tok);
+            }
+            if (idx >= 4) {
+                json_t *item = json_object();
+                json_object_set_new(item, "total", json_string(parts[1]));
+                json_object_set_new(item, "used", json_string(parts[2]));
+                json_object_set_new(item, "free", json_string(parts[3]));
+                json_array_append_new(results, item);
+            }
+        }
+        free(lower);
+        line = strtok_r(NULL, "\n", &saveptr_line);
+    }
+    free(out);
+#elif defined(OS_WINDOWS)
+    cmd = "wmic OS get FreePhysicalMemory,TotalVisibleMemorySize /Value";
+    json_object_set_new(obj, "command", json_string(cmd));
+    if (!command_available("wmic")) {
+        json_object_set_new(obj, "error", json_string("wmic needs to be installed"));
+        return obj;
+    }
+    char *out = run_command(cmd);
+    if (!out) return obj;
+    char *saveptr_line = NULL;
+    char *line = strtok_r(out, "\n", &saveptr_line);
+    long long total_kb = 0, free_kb = 0;
+    while (line) {
+        char *eq = strchr(line, '=');
+        if (eq) {
+            *eq = '\0';
+            char *key = line;
+            char *val = eq + 1;
+            while (*val == ' ' || *val == '\t') val++;
+            if (strcmp(key, "TotalVisibleMemorySize") == 0)
+                total_kb = atoll(val);
+            else if (strcmp(key, "FreePhysicalMemory") == 0)
+                free_kb = atoll(val);
+        }
+        line = strtok_r(NULL, "\n", &saveptr_line);
+    }
+    if (total_kb > 0) {
+        long long used_kb = total_kb - free_kb;
+        char total_s[32], used_s[32], free_s[32];
+        snprintf(total_s, sizeof(total_s), "%lldM", total_kb / 1024);
+        snprintf(used_s, sizeof(used_s), "%lldM", used_kb / 1024);
+        snprintf(free_s, sizeof(free_s), "%lldM", free_kb / 1024);
+        json_t *item = json_object();
+        json_object_set_new(item, "total", json_string(total_s));
+        json_object_set_new(item, "used", json_string(used_s));
+        json_object_set_new(item, "free", json_string(free_s));
+        json_array_append_new(results, item);
+    }
+    free(out);
+#elif defined(OS_DARWIN)
+    cmd = "vm_stat";
+    json_object_set_new(obj, "command", json_string(cmd));
+    if (!command_available("vm_stat")) {
+        json_object_set_new(obj, "error", json_string("vm_stat needs to be installed"));
+        return obj;
+    }
+    char *out = run_command(cmd);
+    if (!out) return obj;
+    long long page_size = 4096;
+    long long free = 0, active = 0, inactive = 0;
+    char *saveptr_line = NULL;
+    char *line = strtok_r(out, "\n", &saveptr_line);
+    while (line) {
+        char *colon = strchr(line, ':');
+        if (colon) {
+            *colon = '\0';
+            char *key = line;
+            char *val = colon + 1;
+            while (*val == ' ' || *val == '\t') val++;
+            long long pages = atoll(val);
+            if (strcmp(key, "Pages free") == 0)
+                free = pages * page_size;
+            else if (strcmp(key, "Pages active") == 0)
+                active = pages * page_size;
+            else if (strcmp(key, "Pages inactive") == 0)
+                inactive = pages * page_size;
+        }
+        line = strtok_r(NULL, "\n", &saveptr_line);
+    }
+    long long used = active + inactive;
+    long long total = used + free;
+    if (total > 0) {
+        char total_s[32], used_s[32], free_s[32];
+        snprintf(total_s, sizeof(total_s), "%lldM", total / (1024 * 1024));
+        snprintf(used_s, sizeof(used_s), "%lldM", used / (1024 * 1024));
+        snprintf(free_s, sizeof(free_s), "%lldM", free / (1024 * 1024));
+        json_t *item = json_object();
+        json_object_set_new(item, "total", json_string(total_s));
+        json_object_set_new(item, "used", json_string(used_s));
+        json_object_set_new(item, "free", json_string(free_s));
+        json_array_append_new(results, item);
+    }
+    free(out);
+#else
+    json_object_set_new(obj, "command", json_string(""));
+    json_object_set_new(obj, "error", json_string("unsupported platform"));
+#endif
+    return obj;
+}
+
 static json_t *scan_vulnerabilities(const char *target) {
     json_t *obj = json_object();
     json_t *results = json_array();
@@ -362,16 +620,20 @@ int main(void) {
     json_t *root = json_object();
 
     fprintf(stderr, "loading...\n");
-    const int total = 4;
+    const int total = 6;
     int i = 0;
     clock_t start = clock();
 
     json_object_set_new(root, "ip_addresses", get_ip_addresses());
-    fprintf(stderr, "[##########                    ] %d/%d\r", ++i, total);
+    fprintf(stderr, "[#####                         ] %d/%d\r", ++i, total);
     json_object_set_new(root, "open_ports", get_open_ports());
-    fprintf(stderr, "[####################          ] %d/%d\r", ++i, total);
+    fprintf(stderr, "[##########                    ] %d/%d\r", ++i, total);
     json_object_set_new(root, "running_services", get_running_services());
-    fprintf(stderr, "[############################  ] %d/%d\r", ++i, total);
+    fprintf(stderr, "[###############               ] %d/%d\r", ++i, total);
+    json_object_set_new(root, "disk_usage", get_disk_usage());
+    fprintf(stderr, "[####################          ] %d/%d\r", ++i, total);
+    json_object_set_new(root, "memory", get_memory_usage());
+    fprintf(stderr, "[#########################     ] %d/%d\r", ++i, total);
     json_object_set_new(root, "vulnerabilities", scan_vulnerabilities("127.0.0.1"));
     fprintf(stderr, "[##############################] %d/%d\n", ++i, total);
 

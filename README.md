@@ -79,6 +79,7 @@ the vulnerabilities list will be empty.
 
 ## netre.c (C version)
 This repository also includes a basic C implementation using the [Jansson](https://digip.org/jansson/) library for JSON handling.
+It gathers the same data as the Python script, including disk usage and memory statistics.
 
 Compile it with the provided Makefile:
 
