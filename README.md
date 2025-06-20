@@ -15,7 +15,8 @@ Run it with:
 python3 netre.py
 ```
 
-The script will display `loading...` while it gathers information before
+While running, the script prints a progress bar to `stderr`. When all
+tasks complete it shows how many seconds were required before
 printing the final JSON output.
 
 ### Output format

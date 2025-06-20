@@ -3,6 +3,7 @@ import json
 import platform
 import shutil
 import sys
+import time
 from typing import List, Dict
 
 try:
@@ -28,7 +29,9 @@ def get_ip_addresses():
             if not command_available('ip'):
                 error = 'ip needs to be installed'
             else:
-                output = subprocess.check_output(['ip', '-j', 'addr'], text=True)
+                output = subprocess.check_output(
+                    ['ip', '-j', 'addr'], text=True, stderr=subprocess.DEVNULL
+                )
                 data = json.loads(output)
                 for iface in data:
                     for addr in iface.get('addr_info', []):
@@ -40,7 +43,9 @@ def get_ip_addresses():
             if not command_available('ipconfig'):
                 error = 'ipconfig needs to be installed'
             else:
-                output = subprocess.check_output(['ipconfig'], text=True)
+                output = subprocess.check_output(
+                    ['ipconfig'], text=True, stderr=subprocess.DEVNULL
+                )
                 for line in output.splitlines():
                     line = line.strip()
                     if line.startswith('IPv4'):
@@ -52,7 +57,9 @@ def get_ip_addresses():
             if not command_available('ifconfig'):
                 error = 'ifconfig needs to be installed'
             else:
-                output = subprocess.check_output(['ifconfig'], text=True)
+                output = subprocess.check_output(
+                    ['ifconfig'], text=True, stderr=subprocess.DEVNULL
+                )
                 for line in output.splitlines():
                     line = line.strip()
                     if line.startswith('inet ') and '127.0.0.1' not in line:
@@ -77,7 +84,9 @@ def get_open_ports():
             if not command_available('ss'):
                 error = 'ss needs to be installed'
             else:
-                output = subprocess.check_output(['ss', '-tuln'], text=True)
+                output = subprocess.check_output(
+                    ['ss', '-tuln'], text=True, stderr=subprocess.DEVNULL
+                )
                 for line in output.splitlines()[1:]:
                     parts = line.split()
                     if len(parts) >= 5:
@@ -89,7 +98,9 @@ def get_open_ports():
             if not command_available('netstat'):
                 error = 'netstat needs to be installed'
             else:
-                output = subprocess.check_output(['netstat', '-ano'], text=True)
+                output = subprocess.check_output(
+                    ['netstat', '-ano'], text=True, stderr=subprocess.DEVNULL
+                )
                 for line in output.splitlines():
                     parts = line.split()
                     if len(parts) >= 5 and (parts[0].startswith('TCP') or parts[0].startswith('UDP')):
@@ -101,7 +112,9 @@ def get_open_ports():
             if not command_available('lsof'):
                 error = 'lsof needs to be installed'
             else:
-                output = subprocess.check_output(['lsof', '-i', '-nP'], text=True)
+                output = subprocess.check_output(
+                    ['lsof', '-i', '-nP'], text=True, stderr=subprocess.DEVNULL
+                )
                 for line in output.splitlines()[1:]:
                     parts = line.split()
                     if len(parts) >= 9:
@@ -129,6 +142,7 @@ def get_running_services():
                 output = subprocess.check_output(
                     ['systemctl', 'list-units', '--type=service', '--state=running', '--no-pager', '--no-legend'],
                     text=True,
+                    stderr=subprocess.DEVNULL,
                 )
                 for line in output.splitlines():
                     parts = line.split()
@@ -140,7 +154,9 @@ def get_running_services():
             if not command_available('sc'):
                 error = 'sc needs to be installed'
             else:
-                output = subprocess.check_output(['sc', 'query', 'state=running'], text=True)
+                output = subprocess.check_output(
+                    ['sc', 'query', 'state=running'], text=True, stderr=subprocess.DEVNULL
+                )
                 for line in output.splitlines():
                     line = line.strip()
                     if line.startswith('SERVICE_NAME:'):
@@ -168,6 +184,7 @@ def scan_vulnerabilities(target: str = '127.0.0.1') -> Dict[str, List[Dict[str, 
             ['nmap', '-sV', '--script', 'vulners', target],
             text=True,
             errors='ignore',
+            stderr=subprocess.DEVNULL,
         )
         lines = output.splitlines()
         current_port = ''
@@ -210,12 +227,27 @@ def scan_vulnerabilities(target: str = '127.0.0.1') -> Dict[str, List[Dict[str, 
 
 def main():
     print("loading...", file=sys.stderr, flush=True)
-    data = {
-        'ip_addresses': get_ip_addresses(),
-        'open_ports': get_open_ports(),
-        'running_services': get_running_services(),
-        'vulnerabilities': scan_vulnerabilities(),
-    }
+
+    tasks = [
+        ('ip_addresses', get_ip_addresses),
+        ('open_ports', get_open_ports),
+        ('running_services', get_running_services),
+        ('vulnerabilities', scan_vulnerabilities),
+    ]
+
+    start_time = time.time()
+    total = len(tasks)
+    data: Dict[str, Dict[str, List[Dict[str, str]]]] = {}
+
+    for i, (name, func) in enumerate(tasks, 1):
+        data[name] = func()
+        filled = int(30 * i / total)
+        bar = '[' + '#' * filled + ' ' * (30 - filled) + ']'
+        print(f"\r{bar} {i}/{total}", file=sys.stderr, end='', flush=True)
+
+    elapsed = time.time() - start_time
+    print(f"\nCompleted in {elapsed:.2f} seconds", file=sys.stderr)
+
     print(json.dumps(data, indent=2))
 
 
