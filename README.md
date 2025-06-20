@@ -41,6 +41,9 @@ collect the information and the corresponding results:
 }
 ```
 
+If a command used by the script is missing, that section will also include an
+`error` field describing what needs to be installed.
+
 ### Requirements (nmap, python3-nmap)
 
 Install the following packages on Ubuntu/Debian systems:
@@ -49,8 +52,9 @@ Install the following packages on Ubuntu/Debian systems:
 sudo apt-get install nmap python3-nmap
 ```
 
-The scan will run even if these packages are missing, but the vulnerabilities
-section will be empty.
+The script will still run even if these packages are missing. In that case the
+JSON output will include an error stating that `nmap` needs to be installed and
+the vulnerabilities list will be empty.
 
 ### Compatibility of commands
 
