@@ -242,7 +242,11 @@ def main():
     for i, (name, func) in enumerate(tasks, 1):
         data[name] = func()
         filled = int(30 * i / total)
-        bar = '[' + '#' * filled + ' ' * (30 - filled) + ']'
+        if filled > 0:
+            bar_chars = '#' * (filled - 1) + '\033[5m#\033[0m'
+        else:
+            bar_chars = ''
+        bar = '[' + bar_chars + ' ' * (30 - filled) + ']'
         print(f"\r{bar} {i}/{total}", file=sys.stderr, end='', flush=True)
 
     elapsed = time.time() - start_time

@@ -15,9 +15,10 @@ Run it with:
 python3 netre.py
 ```
 
-While running, the script prints a progress bar to `stderr`. When all
-tasks complete it shows how many seconds were required before
-printing the final JSON output.
+While running, the script prints a progress bar to `stderr`. The last
+`#` in the bar blinks so you can easily see the current progress.
+When all tasks complete, the script shows how many seconds were
+required before printing the final JSON output.
 
 ### Output format
 
