@@ -1,5 +1,4 @@
-# netre (ip, ss, systemctl, ipconfig, netstat, ifconfig, lsof, sc, nmap, df, free, uptime)
-Net read - a project that scan you server and resume you all vulnerability and how to patch them
+# netre - net read
 
 ## netre.py (uses `ip`, `ss`, `systemctl`, `ipconfig`, `netstat`, `ifconfig`, `lsof`, `sc`, `nmap`, `df`, `free`, `uptime`)
 
