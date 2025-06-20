@@ -1,9 +1,9 @@
-# netre (ip, ss, systemctl, ipconfig, netstat, ifconfig, lsof, sc, nmap, df, free)
+# netre (ip, ss, systemctl, ipconfig, netstat, ifconfig, lsof, sc, nmap, df, free, uptime)
 Net read - a project that scan you server and resume you all vulnerability and how to patch them
 
-## netre.py (uses `ip`, `ss`, `systemctl`, `ipconfig`, `netstat`, `ifconfig`, `lsof`, `sc`, `nmap`, `df`, `free`)
+## netre.py (uses `ip`, `ss`, `systemctl`, `ipconfig`, `netstat`, `ifconfig`, `lsof`, `sc`, `nmap`, `df`, `free`, `uptime`)
 
-This Python script summarizes network and system information on the host machine. On Linux it relies on `ip`, `ss`, `systemctl`, `df` and `free`. On Windows it uses `ipconfig`, `netstat` and `wmic`, while macOS support falls back to `ifconfig`, `lsof` and `vm_stat`.
+This Python script summarizes network and system information on the host machine. On Linux it relies on `ip`, `ss`, `systemctl`, `df`, `free` and `uptime`. On Windows it uses `ipconfig`, `netstat` and `wmic`, while macOS support falls back to `ifconfig`, `lsof`, `vm_stat` and `uptime`.
 
 It can also scan the local host for known vulnerabilities using `nmap`'s
 `vulners` script. By default it runs `nmap -sV --script vulners 127.0.0.1`.
@@ -47,6 +47,10 @@ collect the information and the corresponding results:
     "command": "free -h",
     "results": []
   },
+  "uptime": {
+    "command": "uptime -p",
+    "results": []
+  },
   "vulnerabilities": {
     "command": "nmap -sV --script vulners 127.0.0.1",
     "results": []
@@ -71,15 +75,15 @@ the vulnerabilities list will be empty.
 
 ### Compatibility of commands
 
-| Platform | IP addresses (`ip`, `ipconfig`, `ifconfig`) | Open ports (`ss`, `netstat`, `lsof`) | Services (`systemctl`, `sc`) | Disk usage (`df`, `wmic`) | Memory (`free`, `wmic`, `vm_stat`) | Vulnerability scan (`nmap`) |
-|----------|--------------|------------|----------|-------------------|-----------------------------|--------------------|
-| Linux    | `ip`         | `ss`       | `systemctl` | `df` | `free` | `nmap` |
-| Windows  | `ipconfig`   | `netstat`  | `sc` | `wmic` | `wmic` | `nmap` |
-| macOS    | `ifconfig`   | `lsof`     | not supported | `df` | `vm_stat` | `nmap` |
+| Platform | IP addresses (`ip`, `ipconfig`, `ifconfig`) | Open ports (`ss`, `netstat`, `lsof`) | Services (`systemctl`, `sc`) | Disk usage (`df`, `wmic`) | Memory (`free`, `wmic`, `vm_stat`) | Uptime (`uptime`, `wmic`) | Vulnerability scan (`nmap`) |
+|----------|--------------|------------|----------|-------------------|--------------------|--------------------|--------------------|
+| Linux    | `ip`         | `ss`       | `systemctl` | `df` | `free` | `uptime` | `nmap` |
+| Windows  | `ipconfig`   | `netstat`  | `sc` | `wmic` | `wmic` | `wmic` | `nmap` |
+| macOS    | `ifconfig`   | `lsof`     | not supported | `df` | `vm_stat` | `uptime` | `nmap` |
 
 ## netre.c (C version)
 This repository also includes a basic C implementation using the [Jansson](https://digip.org/jansson/) library for JSON handling.
-It gathers the same data as the Python script, including disk usage and memory statistics.
+It gathers the same data as the Python script, including disk usage, memory statistics and uptime.
 Execution time is measured with a monotonic clock so the printed duration reflects
 real wall-clock time rather than CPU usage.
 

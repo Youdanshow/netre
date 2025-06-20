@@ -65,6 +65,16 @@ static int command_available(const char *cmd) {
     return ret == 0;
 }
 
+static void print_progress(int step, int total) {
+    int filled = (30 * step) / total;
+    fprintf(stderr, "\r[");
+    for (int i = 0; i < filled; i++) fputc('#', stderr);
+    for (int i = filled; i < 30; i++) fputc(' ', stderr);
+    fprintf(stderr, "] %d/%d", step, total);
+    if (step == total) fputc('\n', stderr);
+    fflush(stderr);
+}
+
 static json_t *get_ip_addresses(void) {
     json_t *obj = json_object();
     json_t *results = json_array();
@@ -573,6 +583,70 @@ static json_t *get_memory_usage(void) {
     return obj;
 }
 
+static json_t *get_uptime(void) {
+    json_t *obj = json_object();
+    json_t *results = json_array();
+    json_object_set_new(obj, "results", results);
+    const char *cmd = "";
+#if defined(OS_LINUX) || defined(OS_DARWIN)
+    cmd = "uptime -p";
+    json_object_set_new(obj, "command", json_string(cmd));
+    if (!command_available("uptime")) {
+        json_object_set_new(obj, "error", json_string("uptime needs to be installed"));
+        return obj;
+    }
+    char *out = run_command(cmd);
+    if (out) {
+        char *start = out;
+        while (*start && (*start == '\n' || *start == '\r')) start++;
+        char *end = start + strlen(start);
+        while (end > start && (end[-1] == '\n' || end[-1] == '\r')) end--;
+        *end = '\0';
+        json_array_append_new(results, json_string(start));
+        free(out);
+    }
+#elif defined(OS_WINDOWS)
+    cmd = "wmic os get lastbootuptime";
+    json_object_set_new(obj, "command", json_string(cmd));
+    if (!command_available("wmic")) {
+        json_object_set_new(obj, "error", json_string("wmic needs to be installed"));
+        return obj;
+    }
+    char *out = run_command(cmd);
+    if (out) {
+        char *line = strtok(out, "\n");
+        char *boot = NULL;
+        while (line) {
+            while (*line == ' ' || *line == '\t') line++;
+            if (*line && strncmp(line, "LastBootUpTime", 13) != 0) { boot = line; break; }
+            line = strtok(NULL, "\n");
+        }
+        if (boot) {
+            char ts[15];
+            strncpy(ts, boot, 14);
+            ts[14] = '\0';
+            struct tm tm = {0};
+            if (strptime(ts, "%Y%m%d%H%M%S", &tm)) {
+                time_t boot_t = mktime(&tm);
+                time_t now = time(NULL);
+                long diff = difftime(now, boot_t);
+                int days = diff / 86400;
+                int hours = (diff % 86400) / 3600;
+                int minutes = (diff % 3600) / 60;
+                char buf[128];
+                snprintf(buf, sizeof(buf), "%d days, %d hours, %d minutes", days, hours, minutes);
+                json_array_append_new(results, json_string(buf));
+            }
+        }
+        free(out);
+    }
+#else
+    json_object_set_new(obj, "command", json_string(""));
+    json_object_set_new(obj, "error", json_string("unsupported platform"));
+#endif
+    return obj;
+}
+
 static json_t *scan_vulnerabilities(const char *target) {
     json_t *obj = json_object();
     json_t *results = json_array();
@@ -638,22 +712,24 @@ int main(void) {
     json_t *root = json_object();
 
     fprintf(stderr, "loading...\n");
-    const int total = 6;
+    const int total = 7;
     int i = 0;
     double start = get_time_seconds();
 
     json_object_set_new(root, "ip_addresses", get_ip_addresses());
-    fprintf(stderr, "[#####                         ] %d/%d\r", ++i, total);
+    print_progress(++i, total);
     json_object_set_new(root, "open_ports", get_open_ports());
-    fprintf(stderr, "[##########                    ] %d/%d\r", ++i, total);
+    print_progress(++i, total);
     json_object_set_new(root, "running_services", get_running_services());
-    fprintf(stderr, "[###############               ] %d/%d\r", ++i, total);
+    print_progress(++i, total);
     json_object_set_new(root, "disk_usage", get_disk_usage());
-    fprintf(stderr, "[####################          ] %d/%d\r", ++i, total);
+    print_progress(++i, total);
     json_object_set_new(root, "memory", get_memory_usage());
-    fprintf(stderr, "[#########################     ] %d/%d\r", ++i, total);
+    print_progress(++i, total);
+    json_object_set_new(root, "uptime", get_uptime());
+    print_progress(++i, total);
     json_object_set_new(root, "vulnerabilities", scan_vulnerabilities("127.0.0.1"));
-    fprintf(stderr, "[##############################] %d/%d\n", ++i, total);
+    print_progress(++i, total);
 
     double elapsed = get_time_seconds() - start;
     fprintf(stderr, "Completed in %.2f seconds\n", elapsed);

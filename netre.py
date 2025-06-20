@@ -4,6 +4,7 @@ import platform
 import shutil
 import sys
 import time
+import datetime
 from typing import List, Dict
 
 try:
@@ -320,6 +321,59 @@ def get_memory_usage():
     return result
 
 
+def get_uptime():
+    command = ''
+    error = None
+    up = []
+    try:
+        if OS in ('Linux', 'Darwin'):
+            command = 'uptime -p'
+            if not command_available('uptime'):
+                error = 'uptime needs to be installed'
+            else:
+                output = subprocess.check_output(
+                    ['uptime', '-p'], text=True, stderr=subprocess.DEVNULL
+                )
+                up.append(output.strip())
+        elif OS == 'Windows':
+            command = 'wmic os get lastbootuptime'
+            if not command_available('wmic'):
+                error = 'wmic needs to be installed'
+            else:
+                output = subprocess.check_output(
+                    ['wmic', 'os', 'get', 'lastbootuptime'],
+                    text=True,
+                    stderr=subprocess.DEVNULL,
+                )
+                boot = ''
+                for line in output.splitlines():
+                    line = line.strip()
+                    if line and 'LastBootUpTime' not in line:
+                        boot = line
+                        break
+                if boot:
+                    try:
+                        boot_dt = datetime.datetime.strptime(
+                            boot.split('.')[0], '%Y%m%d%H%M%S'
+                        )
+                        diff = datetime.datetime.now() - boot_dt
+                        days = diff.days
+                        hours, rem = divmod(diff.seconds, 3600)
+                        minutes = rem // 60
+                        up.append(
+                            f"{days} days, {hours} hours, {minutes} minutes"
+                        )
+                    except Exception:
+                        pass
+    except Exception:
+        pass
+
+    result = {'command': command, 'results': up}
+    if error:
+        result['error'] = error
+    return result
+
+
 def scan_vulnerabilities(target: str = '127.0.0.1') -> Dict[str, List[Dict[str, str]]]:
     """Run nmap with the vulners script and return detected vulnerabilities."""
     command = f'nmap -sV --script vulners {target}'
@@ -385,6 +439,7 @@ def main():
         ('running_services', get_running_services),
         ('disk_usage', get_disk_usage),
         ('memory', get_memory_usage),
+        ('uptime', get_uptime),
         ('vulnerabilities', scan_vulnerabilities),
     ]
 
