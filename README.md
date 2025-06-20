@@ -75,6 +75,7 @@ This repository also includes a basic C implementation using the [Jansson](https
 Compile it with the provided Makefile:
 
 ```bash
+sudo apt install libjansson-dev
 make
 ```
 
