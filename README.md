@@ -6,8 +6,9 @@ Net read - a project that scan you server and resume you all vulnerability and h
 This Python script summarizes network information on the host system. On Linux it relies on `ip`, `ss` and `systemctl`. On Windows it uses `ipconfig` and `netstat`, while macOS support falls back to `ifconfig` and `lsof`.
 
 It can also scan the local host for known vulnerabilities using `nmap`'s
-`vulners` script. The vulnerability scan relies on the `nmap` command line tool
-and the `python-nmap` library.
+`vulners` script. By default it runs `nmap -sV --script vulners 127.0.0.1`.
+The vulnerability scan relies on the `nmap` command line tool and the
+`python-nmap` library.
 
 Run it with:
 
@@ -35,7 +36,7 @@ collect the information and the corresponding results:
     "results": []
   },
   "vulnerabilities": {
-    "command": "nmap -sV --script vulners",
+    "command": "nmap -sV --script vulners 127.0.0.1",
     "results": []
   }
 }

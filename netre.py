@@ -154,7 +154,7 @@ def get_running_services():
 
 def scan_vulnerabilities(target: str = '127.0.0.1') -> Dict[str, List[Dict[str, str]]]:
     """Run nmap with the vulners script and return detected vulnerabilities."""
-    command = 'nmap -sV --script vulners'
+    command = f'nmap -sV --script vulners {target}'
     error = None
     if nmap is None or not command_available('nmap'):
         error = 'nmap needs to be installed'
