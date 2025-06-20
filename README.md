@@ -15,6 +15,9 @@ Run it with:
 python3 netre.py
 ```
 
+The script will display `loading...` while it gathers information before
+printing the final JSON output.
+
 ### Output format
 
 The script prints a JSON object. Each section lists the command used to

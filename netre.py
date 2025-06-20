@@ -2,6 +2,7 @@ import subprocess
 import json
 import platform
 import shutil
+import sys
 from typing import List, Dict
 
 try:
@@ -208,6 +209,7 @@ def scan_vulnerabilities(target: str = '127.0.0.1') -> Dict[str, List[Dict[str, 
 
 
 def main():
+    print("loading...", file=sys.stderr, flush=True)
     data = {
         'ip_addresses': get_ip_addresses(),
         'open_ports': get_open_ports(),
