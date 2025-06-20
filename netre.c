@@ -93,7 +93,8 @@ static json_t *get_ip_addresses(void) {
     }
     char *out = run_command(cmd);
     if (!out) return obj;
-    char *line = strtok(out, "\n");
+    char *saveptr_line = NULL;
+    char *line = strtok_r(out, "\n", &saveptr_line);
     while (line) {
         char *trim = line;
         while (*trim == ' ' || *trim == '\t') trim++;
@@ -155,15 +156,17 @@ static json_t *get_open_ports(void) {
     }
     char *out = run_command(cmd);
     if (!out) return obj;
-    char *line = strtok(out, "\n");
-    if (line) line = strtok(NULL, "\n"); /* skip header */
+    char *saveptr_line = NULL;
+    char *line = strtok_r(out, "\n", &saveptr_line);
+    if (line) line = strtok_r(NULL, "\n", &saveptr_line); /* skip header */
     while (line) {
         char *parts[6];
         int idx = 0;
-        char *tok = strtok(line, " \t");
+        char *saveptr_tok = NULL;
+        char *tok = strtok_r(line, " \t", &saveptr_tok);
         while (tok && idx < 6) {
             parts[idx++] = tok;
-            tok = strtok(NULL, " \t");
+            tok = strtok_r(NULL, " \t", &saveptr_tok);
         }
         if (idx >= 5) {
             json_t *item = json_object();
@@ -171,7 +174,7 @@ static json_t *get_open_ports(void) {
             json_object_set_new(item, "local_address", json_string(parts[4]));
             json_array_append_new(results, item);
         }
-        line = strtok(NULL, "\n");
+        line = strtok_r(NULL, "\n", &saveptr_line);
     }
     free(out);
 #elif defined(OS_WINDOWS)
@@ -183,14 +186,16 @@ static json_t *get_open_ports(void) {
     }
     char *out = run_command(cmd);
     if (!out) return obj;
-    char *line = strtok(out, "\n");
+    char *saveptr_line = NULL;
+    char *line = strtok_r(out, "\n", &saveptr_line);
     while (line) {
         char *parts[6];
         int idx = 0;
-        char *tok = strtok(line, " \t");
+        char *saveptr_tok = NULL;
+        char *tok = strtok_r(line, " \t", &saveptr_tok);
         while (tok && idx < 6) {
             parts[idx++] = tok;
-            tok = strtok(NULL, " \t");
+            tok = strtok_r(NULL, " \t", &saveptr_tok);
         }
         if (idx >= 2 && (strncmp(parts[0], "TCP", 3) == 0 || strncmp(parts[0], "UDP", 3) == 0)) {
             json_t *item = json_object();
@@ -198,7 +203,7 @@ static json_t *get_open_ports(void) {
             json_object_set_new(item, "local_address", json_string(parts[1]));
             json_array_append_new(results, item);
         }
-        line = strtok(NULL, "\n");
+        line = strtok_r(NULL, "\n", &saveptr_line);
     }
     free(out);
 #elif defined(OS_DARWIN)
@@ -210,15 +215,17 @@ static json_t *get_open_ports(void) {
     }
     char *out = run_command(cmd);
     if (!out) return obj;
-    char *line = strtok(out, "\n");
-    if (line) line = strtok(NULL, "\n");
+    char *saveptr_line = NULL;
+    char *line = strtok_r(out, "\n", &saveptr_line);
+    if (line) line = strtok_r(NULL, "\n", &saveptr_line);
     while (line) {
         char *parts[10];
         int idx = 0;
-        char *tok = strtok(line, " \t");
+        char *saveptr_tok = NULL;
+        char *tok = strtok_r(line, " \t", &saveptr_tok);
         while (tok && idx < 10) {
             parts[idx++] = tok;
-            tok = strtok(NULL, " \t");
+            tok = strtok_r(NULL, " \t", &saveptr_tok);
         }
         if (idx >= 9) {
             json_t *item = json_object();
@@ -226,7 +233,7 @@ static json_t *get_open_ports(void) {
             json_object_set_new(item, "local_address", json_string(parts[8]));
             json_array_append_new(results, item);
         }
-        line = strtok(NULL, "\n");
+        line = strtok_r(NULL, "\n", &saveptr_line);
     }
     free(out);
 #else
@@ -250,14 +257,16 @@ static json_t *get_running_services(void) {
     }
     char *out = run_command(cmd);
     if (!out) return obj;
-    char *line = strtok(out, "\n");
+    char *saveptr_line = NULL;
+    char *line = strtok_r(out, "\n", &saveptr_line);
     while (line) {
-        char *service = strtok(line, " \t");
+        char *saveptr_tok = NULL;
+        char *service = strtok_r(line, " \t", &saveptr_tok);
         if (service) {
             json_t *item = json_string(service);
             json_array_append_new(results, item);
         }
-        line = strtok(NULL, "\n");
+        line = strtok_r(NULL, "\n", &saveptr_line);
     }
     free(out);
 #elif defined(OS_WINDOWS)
@@ -269,7 +278,8 @@ static json_t *get_running_services(void) {
     }
     char *out = run_command(cmd);
     if (!out) return obj;
-    char *line = strtok(out, "\n");
+    char *saveptr_line = NULL;
+    char *line = strtok_r(out, "\n", &saveptr_line);
     while (line) {
         while (*line == ' ' || *line == '\t') line++;
         if (strncmp(line, "SERVICE_NAME:", 13) == 0) {
@@ -277,7 +287,7 @@ static json_t *get_running_services(void) {
             while (*name == ' ') name++;
             json_array_append_new(results, json_string(name));
         }
-        line = strtok(NULL, "\n");
+        line = strtok_r(NULL, "\n", &saveptr_line);
     }
     free(out);
 #else
@@ -300,7 +310,8 @@ static json_t *scan_vulnerabilities(const char *target) {
     snprintf(cmd, sizeof(cmd), "nmap -sV --script vulners %s", target);
     char *out = run_command(cmd);
     if (!out) return obj;
-    char *line = strtok(out, "\n");
+    char *saveptr_line = NULL;
+    char *line = strtok_r(out, "\n", &saveptr_line);
     char current_port[32] = "";
     int collecting = 0;
     while (line) {
@@ -308,19 +319,20 @@ static json_t *scan_vulnerabilities(const char *target) {
         while (*trim == ' ' || *trim == '\t') trim++;
         if (strncmp(trim, "| vulners:", 10) == 0) {
             collecting = 1;
-            line = strtok(NULL, "\n");
+            line = strtok_r(NULL, "\n", &saveptr_line);
             continue;
         }
         if (collecting) {
-            if (*trim != '|') { collecting = 0; line = strtok(NULL, "\n"); continue; }
+            if (*trim != '|') { collecting = 0; line = strtok_r(NULL, "\n", &saveptr_line); continue; }
             char *content = trim + 1;
             while (*content == ' ') content++;
             char *parts[4];
             int idx = 0;
-            char *tok = strtok(content, " \t");
+            char *saveptr_tok = NULL;
+            char *tok = strtok_r(content, " \t", &saveptr_tok);
             while (tok && idx < 4) {
                 parts[idx++] = tok;
-                tok = strtok(NULL, " \t");
+                tok = strtok_r(NULL, " \t", &saveptr_tok);
             }
             if (idx >= 3 && strncmp(parts[0], "CVE-", 4) == 0) {
                 json_t *item = json_object();
@@ -340,7 +352,7 @@ static json_t *scan_vulnerabilities(const char *target) {
                 if (slash) *slash = '\0';
             }
         }
-        line = strtok(NULL, "\n");
+        line = strtok_r(NULL, "\n", &saveptr_line);
     }
     free(out);
     return obj;
