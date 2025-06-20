@@ -1,5 +1,6 @@
 import subprocess
 import json
+import platform
 from typing import List, Dict
 
 try:
@@ -7,32 +8,73 @@ try:
 except Exception:
     nmap = None
 
+OS = platform.system()
+
 
 def get_ip_addresses():
     try:
-        output = subprocess.check_output(['ip', '-j', 'addr'], text=True)
-        data = json.loads(output)
-        ips = []
-        for iface in data:
-            for addr in iface.get('addr_info', []):
-                ip = addr.get('local')
-                if ip:
-                    ips.append({'interface': iface.get('ifname'), 'ip': ip})
-        return ips
-    except Exception as e:
-        return []
+        if OS == 'Linux':
+            output = subprocess.check_output(['ip', '-j', 'addr'], text=True)
+            data = json.loads(output)
+            ips = []
+            for iface in data:
+                for addr in iface.get('addr_info', []):
+                    ip = addr.get('local')
+                    if ip:
+                        ips.append({'interface': iface.get('ifname'), 'ip': ip})
+            return ips
+        elif OS == 'Windows':
+            output = subprocess.check_output(['ipconfig'], text=True)
+            ips = []
+            for line in output.splitlines():
+                line = line.strip()
+                if line.startswith('IPv4'):
+                    parts = line.split(':')
+                    if len(parts) == 2:
+                        ips.append({'interface': 'unknown', 'ip': parts[1].strip()})
+            return ips
+        elif OS == 'Darwin':
+            output = subprocess.check_output(['ifconfig'], text=True)
+            ips = []
+            for line in output.splitlines():
+                line = line.strip()
+                if line.startswith('inet ') and '127.0.0.1' not in line:
+                    parts = line.split()
+                    if len(parts) >= 2:
+                        ips.append({'interface': 'unknown', 'ip': parts[1]})
+            return ips
+    except Exception:
+        pass
+    return []
 
 
 def get_open_ports():
     ports = []
     try:
-        output = subprocess.check_output(['ss', '-tuln'], text=True)
-        for line in output.splitlines()[1:]:
-            parts = line.split()
-            if len(parts) >= 5:
-                proto = parts[0]
-                local_addr = parts[4]
-                ports.append({'protocol': proto, 'local_address': local_addr})
+        if OS == 'Linux':
+            output = subprocess.check_output(['ss', '-tuln'], text=True)
+            for line in output.splitlines()[1:]:
+                parts = line.split()
+                if len(parts) >= 5:
+                    proto = parts[0]
+                    local_addr = parts[4]
+                    ports.append({'protocol': proto, 'local_address': local_addr})
+        elif OS == 'Windows':
+            output = subprocess.check_output(['netstat', '-ano'], text=True)
+            for line in output.splitlines():
+                parts = line.split()
+                if len(parts) >= 5 and (parts[0].startswith('TCP') or parts[0].startswith('UDP')):
+                    proto = parts[0]
+                    local_addr = parts[1]
+                    ports.append({'protocol': proto, 'local_address': local_addr})
+        elif OS == 'Darwin':
+            output = subprocess.check_output(['lsof', '-i', '-nP'], text=True)
+            for line in output.splitlines()[1:]:
+                parts = line.split()
+                if len(parts) >= 9:
+                    proto = parts[7]
+                    local_addr = parts[8]
+                    ports.append({'protocol': proto, 'local_address': local_addr})
     except Exception:
         pass
     return ports
@@ -41,15 +83,22 @@ def get_open_ports():
 def get_running_services():
     services = []
     try:
-        output = subprocess.check_output(
-            ['systemctl', 'list-units', '--type=service', '--state=running', '--no-pager', '--no-legend'],
-            text=True,
-        )
-        for line in output.splitlines():
-            parts = line.split()
-            if parts:
-                service = parts[0]
-                services.append(service)
+        if OS == 'Linux':
+            output = subprocess.check_output(
+                ['systemctl', 'list-units', '--type=service', '--state=running', '--no-pager', '--no-legend'],
+                text=True,
+            )
+            for line in output.splitlines():
+                parts = line.split()
+                if parts:
+                    service = parts[0]
+                    services.append(service)
+        elif OS == 'Windows':
+            output = subprocess.check_output(['sc', 'query', 'state=running'], text=True)
+            for line in output.splitlines():
+                line = line.strip()
+                if line.startswith('SERVICE_NAME:'):
+                    services.append(line.split(':', 1)[1].strip())
     except Exception:
         pass
     return services
