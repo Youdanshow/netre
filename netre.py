@@ -169,6 +169,157 @@ def get_running_services():
     return result
 
 
+def get_disk_usage():
+    command = ''
+    error = None
+    disks = []
+    try:
+        if OS in ('Linux', 'Darwin'):
+            command = 'df -h'
+            if not command_available('df'):
+                error = 'df needs to be installed'
+            else:
+                output = subprocess.check_output(
+                    ['df', '-h'], text=True, stderr=subprocess.DEVNULL
+                )
+                for line in output.splitlines()[1:]:
+                    parts = line.split()
+                    if len(parts) >= 6:
+                        disks.append(
+                            {
+                                'filesystem': parts[0],
+                                'size': parts[1],
+                                'used': parts[2],
+                                'available': parts[3],
+                                'use%': parts[4],
+                                'mount': parts[5],
+                            }
+                        )
+        elif OS == 'Windows':
+            command = 'wmic logicaldisk get size,freespace,caption'
+            if not command_available('wmic'):
+                error = 'wmic needs to be installed'
+            else:
+                output = subprocess.check_output(
+                    ['wmic', 'logicaldisk', 'get', 'size,freespace,caption'],
+                    text=True,
+                    stderr=subprocess.DEVNULL,
+                )
+                for line in output.splitlines()[1:]:
+                    parts = line.split()
+                    if len(parts) == 3:
+                        caption, free, size = parts
+                        try:
+                            size_i = int(size)
+                            free_i = int(free)
+                            used_i = size_i - free_i
+                            usage = f"{100 * used_i / size_i:.1f}%" if size_i > 0 else '0%'
+                            disks.append(
+                                {
+                                    'filesystem': caption,
+                                    'size': str(size_i),
+                                    'used': str(used_i),
+                                    'available': str(free_i),
+                                    'use%': usage,
+                                    'mount': caption,
+                                }
+                            )
+                        except Exception:
+                            pass
+    except Exception:
+        pass
+
+    result = {'command': command, 'results': disks}
+    if error:
+        result['error'] = error
+    return result
+
+
+def get_memory_usage():
+    command = ''
+    error = None
+    mem = []
+    try:
+        if OS == 'Linux':
+            command = 'free -h'
+            if not command_available('free'):
+                error = 'free needs to be installed'
+            else:
+                output = subprocess.check_output(
+                    ['free', '-h'], text=True, stderr=subprocess.DEVNULL
+                )
+                for line in output.splitlines():
+                    lower = line.lower()
+                    if lower.startswith('mem:') or lower.startswith('mem '):
+                        parts = line.split()
+                        if len(parts) >= 4:
+                            mem.append(
+                                {
+                                    'total': parts[1],
+                                    'used': parts[2],
+                                    'free': parts[3],
+                                }
+                            )
+        elif OS == 'Windows':
+            command = 'wmic OS get FreePhysicalMemory,TotalVisibleMemorySize /Value'
+            if not command_available('wmic'):
+                error = 'wmic needs to be installed'
+            else:
+                output = subprocess.check_output(
+                    ['wmic', 'OS', 'get', 'FreePhysicalMemory,TotalVisibleMemorySize', '/Value'],
+                    text=True,
+                    stderr=subprocess.DEVNULL,
+                )
+                vals = {}
+                for line in output.splitlines():
+                    if '=' in line:
+                        k, v = line.split('=', 1)
+                        vals[k.strip()] = v.strip()
+                try:
+                    total_kb = int(vals.get('TotalVisibleMemorySize', '0'))
+                    free_kb = int(vals.get('FreePhysicalMemory', '0'))
+                    used_kb = total_kb - free_kb
+                    mem.append(
+                        {
+                            'total': f"{total_kb // 1024}M",
+                            'used': f"{used_kb // 1024}M",
+                            'free': f"{free_kb // 1024}M",
+                        }
+                    )
+                except Exception:
+                    pass
+        elif OS == 'Darwin':
+            command = 'vm_stat'
+            if not command_available('vm_stat'):
+                error = 'vm_stat needs to be installed'
+            else:
+                output = subprocess.check_output(['vm_stat'], text=True, stderr=subprocess.DEVNULL)
+                page_size = 4096
+                stats = {}
+                for line in output.splitlines():
+                    if ':' in line:
+                        k, v = line.split(':')
+                        stats[k.strip()] = int(v.strip().strip('.')) * page_size
+                free = stats.get('Pages free', 0)
+                used = stats.get('Pages active', 0) + stats.get('Pages inactive', 0)
+                total = used + free
+                if total > 0:
+                    mem.append(
+                        {
+                            'total': f"{total // (1024 * 1024)}M",
+                            'used': f"{used // (1024 * 1024)}M",
+                            'free': f"{free // (1024 * 1024)}M",
+                        }
+                    )
+    except Exception:
+        pass
+
+    result = {'command': command, 'results': mem}
+    if error:
+        result['error'] = error
+    return result
+
+
 def scan_vulnerabilities(target: str = '127.0.0.1') -> Dict[str, List[Dict[str, str]]]:
     """Run nmap with the vulners script and return detected vulnerabilities."""
     command = f'nmap -sV --script vulners {target}'
@@ -232,6 +383,8 @@ def main():
         ('ip_addresses', get_ip_addresses),
         ('open_ports', get_open_ports),
         ('running_services', get_running_services),
+        ('disk_usage', get_disk_usage),
+        ('memory', get_memory_usage),
         ('vulnerabilities', scan_vulnerabilities),
     ]
 

@@ -1,9 +1,9 @@
-# netre (ip, ss, systemctl, ipconfig, netstat, ifconfig, lsof, sc, nmap)
+# netre (ip, ss, systemctl, ipconfig, netstat, ifconfig, lsof, sc, nmap, df, free)
 Net read - a project that scan you server and resume you all vulnerability and how to patch them
 
-## netre.py (uses `ip`, `ss`, `systemctl`, `ipconfig`, `netstat`, `ifconfig`, `lsof`, `sc`, `nmap`)
+## netre.py (uses `ip`, `ss`, `systemctl`, `ipconfig`, `netstat`, `ifconfig`, `lsof`, `sc`, `nmap`, `df`, `free`)
 
-This Python script summarizes network information on the host system. On Linux it relies on `ip`, `ss` and `systemctl`. On Windows it uses `ipconfig` and `netstat`, while macOS support falls back to `ifconfig` and `lsof`.
+This Python script summarizes network and system information on the host machine. On Linux it relies on `ip`, `ss`, `systemctl`, `df` and `free`. On Windows it uses `ipconfig`, `netstat` and `wmic`, while macOS support falls back to `ifconfig`, `lsof` and `vm_stat`.
 
 It can also scan the local host for known vulnerabilities using `nmap`'s
 `vulners` script. By default it runs `nmap -sV --script vulners 127.0.0.1`.
@@ -39,6 +39,14 @@ collect the information and the corresponding results:
     "command": "systemctl list-units --type=service --state=running --no-pager --no-legend",
     "results": []
   },
+  "disk_usage": {
+    "command": "df -h",
+    "results": []
+  },
+  "memory": {
+    "command": "free -h",
+    "results": []
+  },
   "vulnerabilities": {
     "command": "nmap -sV --script vulners 127.0.0.1",
     "results": []
@@ -63,11 +71,11 @@ the vulnerabilities list will be empty.
 
 ### Compatibility of commands
 
-| Platform | IP addresses (`ip`, `ipconfig`, `ifconfig`) | Open ports (`ss`, `netstat`, `lsof`) | Services (`systemctl`, `sc`) | Vulnerability scan (`nmap`) |
-|----------|--------------|------------|----------|--------------------|
-| Linux    | `ip`         | `ss`       | `systemctl` | `nmap` |
-| Windows  | `ipconfig`   | `netstat`  | `sc`     | `nmap` |
-| macOS    | `ifconfig`   | `lsof`     | not supported | `nmap` |
+| Platform | IP addresses (`ip`, `ipconfig`, `ifconfig`) | Open ports (`ss`, `netstat`, `lsof`) | Services (`systemctl`, `sc`) | Disk usage (`df`, `wmic`) | Memory (`free`, `wmic`, `vm_stat`) | Vulnerability scan (`nmap`) |
+|----------|--------------|------------|----------|-------------------|-----------------------------|--------------------|
+| Linux    | `ip`         | `ss`       | `systemctl` | `df` | `free` | `nmap` |
+| Windows  | `ipconfig`   | `netstat`  | `sc` | `wmic` | `wmic` | `nmap` |
+| macOS    | `ifconfig`   | `lsof`     | not supported | `df` | `vm_stat` | `nmap` |
 
 ## netre.c (C version)
 This repository also includes a basic C implementation using the [Jansson](https://digip.org/jansson/) library for JSON handling.
