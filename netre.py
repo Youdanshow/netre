@@ -243,7 +243,10 @@ def main():
         data[name] = func()
         filled = int(30 * i / total)
         if filled > 0:
-            bar_chars = '#' * (filled - 1) + '\033[5m#\033[0m'
+            if i < total:
+                bar_chars = '#' * (filled - 1) + '\033[5m#\033[0m'
+            else:
+                bar_chars = '#' * filled
         else:
             bar_chars = ''
         bar = '[' + bar_chars + ' ' * (30 - filled) + ']'
