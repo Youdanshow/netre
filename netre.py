@@ -156,36 +156,52 @@ def scan_vulnerabilities(target: str = '127.0.0.1') -> Dict[str, List[Dict[str, 
     """Run nmap with the vulners script and return detected vulnerabilities."""
     command = f'nmap -sV --script vulners {target}'
     error = None
-    if nmap is None or not command_available('nmap'):
+
+    if not command_available('nmap'):
         error = 'nmap needs to be installed'
+        return {'command': command, 'results': [], 'error': error}
+
     vulns: List[Dict[str, str]] = []
     try:
-        nm = nmap.PortScanner()
-        nm.scan(target, arguments='-sV --script vulners')
-        for host in nm.all_hosts():
-            for proto in nm[host].all_protocols():
-                ports = nm[host][proto].keys()
-                for port in ports:
-                    script_results = nm[host][proto][port].get('script', {})
-                    if not script_results:
-                        continue
-                    out = script_results.get('vulners')
-                    if not out:
-                        continue
-                    for line in out.splitlines():
-                        parts = line.split()
-                        if len(parts) >= 3 and parts[0].startswith('CVE-'):
-                            vulns.append(
-                                {
-                                    'port': str(port),
-                                    'cve': parts[0],
-                                    'cvss': parts[1],
-                                    'link': parts[2],
-                                }
-                            )
+        output = subprocess.check_output(
+            ['nmap', '-sV', '--script', 'vulners', target],
+            text=True,
+            errors='ignore',
+        )
+        lines = output.splitlines()
+        current_port = ''
+        collecting = False
+        for line in lines:
+            stripped = line.strip()
+            if stripped.startswith('| vulners:'):
+                collecting = True
+                continue
+
+            if collecting:
+                if not stripped.startswith('|'):
+                    collecting = False
+                    continue
+                content = stripped.lstrip('|').strip()
+                parts = content.split()
+                if len(parts) >= 3 and parts[0].startswith('CVE-'):
+                    vulns.append(
+                        {
+                            'port': current_port,
+                            'cve': parts[0],
+                            'cvss': parts[1],
+                            'link': parts[2],
+                        }
+                    )
+            else:
+                if '/tcp' in stripped or '/udp' in stripped:
+                    current_port = stripped.split()[0].split('/')[0]
     except Exception:
         pass
-    result = {'command': command, 'results': vulns}
+
+    result: Dict[str, List[Dict[str, str]]] = {
+        'command': command,
+        'results': vulns,
+    }
     if error:
         result['error'] = error
     return result

@@ -7,8 +7,7 @@ This Python script summarizes network information on the host system. On Linux i
 
 It can also scan the local host for known vulnerabilities using `nmap`'s
 `vulners` script. By default it runs `nmap -sV --script vulners 127.0.0.1`.
-The vulnerability scan relies on the `nmap` command line tool and the
-`python-nmap` library.
+The vulnerability scan relies on the `nmap` command line tool.
 
 Run it with:
 
@@ -45,12 +44,12 @@ collect the information and the corresponding results:
 If a command used by the script is missing, that section will also include an
 `error` field describing what needs to be installed.
 
-### Requirements (nmap, python3-nmap)
+### Requirements (nmap)
 
 Install the following packages on Ubuntu/Debian systems:
 
 ```bash
-sudo apt-get install nmap python3-nmap
+sudo apt-get install nmap
 ```
 
 The script will still run even if these packages are missing. In that case the
