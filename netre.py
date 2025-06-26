@@ -7,11 +7,6 @@ import time
 import datetime
 from typing import List, Dict
 
-try:
-    import nmap  # type: ignore
-except Exception:
-    nmap = None
-
 OS = platform.system()
 
 
@@ -374,60 +369,6 @@ def get_uptime():
     return result
 
 
-def scan_vulnerabilities(target: str = '127.0.0.1') -> Dict[str, List[Dict[str, str]]]:
-    """Run nmap with the vulners script and return detected vulnerabilities."""
-    command = f'nmap -sV --script vulners {target}'
-    error = None
-
-    if not command_available('nmap'):
-        error = 'nmap needs to be installed'
-        return {'command': command, 'results': [], 'error': error}
-
-    vulns: List[Dict[str, str]] = []
-    try:
-        output = subprocess.check_output(
-            ['nmap', '-sV', '--script', 'vulners', target],
-            text=True,
-            errors='ignore',
-            stderr=subprocess.DEVNULL,
-        )
-        lines = output.splitlines()
-        current_port = ''
-        collecting = False
-        for line in lines:
-            stripped = line.strip()
-            if stripped.startswith('| vulners:'):
-                collecting = True
-                continue
-
-            if collecting:
-                if not stripped.startswith('|'):
-                    collecting = False
-                    continue
-                content = stripped.lstrip('|').strip()
-                parts = content.split()
-                if len(parts) >= 3 and parts[0].startswith('CVE-'):
-                    vulns.append(
-                        {
-                            'port': current_port,
-                            'cve': parts[0],
-                            'cvss': parts[1],
-                            'link': parts[2],
-                        }
-                    )
-            else:
-                if '/tcp' in stripped or '/udp' in stripped:
-                    current_port = stripped.split()[0].split('/')[0]
-    except Exception:
-        pass
-
-    result: Dict[str, List[Dict[str, str]]] = {
-        'command': command,
-        'results': vulns,
-    }
-    if error:
-        result['error'] = error
-    return result
 
 
 def main():
@@ -440,7 +381,6 @@ def main():
         ('disk_usage', get_disk_usage),
         ('memory', get_memory_usage),
         ('uptime', get_uptime),
-        ('vulnerabilities', scan_vulnerabilities),
     ]
 
     start_time = time.time()
