@@ -1,6 +1,6 @@
 # netre - net read
 
-## netre.py (uses `ip`, `ss`, `systemctl`, `ipconfig`, `netstat`, `ifconfig`, `lsof`, `sc`, `df`, `free`, `uptime`)
+## netre.py
 
 This Python script summarizes network and system information on the host machine. On Linux it relies on `ip`, `ss`, `systemctl`, `df`, `free` and `uptime`. On Windows it uses `ipconfig`, `netstat` and `wmic`, while macOS support falls back to `ifconfig`, `lsof`, `vm_stat` and `uptime`.
 
