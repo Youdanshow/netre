@@ -4,9 +4,6 @@
 
 This Python script summarizes network and system information on the host machine. On Linux it relies on `ip`, `ss`, `systemctl`, `df`, `free` and `uptime`. On Windows it uses `ipconfig`, `netstat` and `wmic`, while macOS support falls back to `ifconfig`, `lsof`, `vm_stat` and `uptime`.
 
-It can also scan the local host for known vulnerabilities using `nmap`'s
-`vulners` script. By default it runs `nmap -sV --script vulners 127.0.0.1`.
-The vulnerability scan relies on the `nmap` command line tool.
 
 Run it with:
 
@@ -50,35 +47,20 @@ collect the information and the corresponding results:
     "command": "uptime -p",
     "results": []
   },
-  "vulnerabilities": {
-    "command": "nmap -sV --script vulners 127.0.0.1",
-    "results": []
-  }
 }
 ```
 
 If a command used by the script is missing, that section will also include an
 `error` field describing what needs to be installed.
 
-### Requirements (nmap)
-
-Install the following packages on Ubuntu/Debian systems:
-
-```bash
-sudo apt-get install nmap
-```
-
-The script will still run even if these packages are missing. In that case the
-JSON output will include an error stating that `nmap` needs to be installed and
-the vulnerabilities list will be empty.
 
 ### Compatibility of commands
 
-| Platform | IP addresses (`ip`, `ipconfig`, `ifconfig`) | Open ports (`ss`, `netstat`, `lsof`) | Services (`systemctl`, `sc`) | Disk usage (`df`, `wmic`) | Memory (`free`, `wmic`, `vm_stat`) | Uptime (`uptime`, `wmic`) | Vulnerability scan (`nmap`) |
-|----------|--------------|------------|----------|-------------------|--------------------|--------------------|--------------------|
-| Linux    | `ip`         | `ss`       | `systemctl` | `df` | `free` | `uptime` | `nmap` |
-| Windows  | `ipconfig`   | `netstat`  | `sc` | `wmic` | `wmic` | `wmic` | `nmap` |
-| macOS    | `ifconfig`   | `lsof`     | not supported | `df` | `vm_stat` | `uptime` | `nmap` |
+| Platform | IP addresses (`ip`, `ipconfig`, `ifconfig`) | Open ports (`ss`, `netstat`, `lsof`) | Services (`systemctl`, `sc`) | Disk usage (`df`, `wmic`) | Memory (`free`, `wmic`, `vm_stat`) | Uptime (`uptime`, `wmic`) |
+|----------|--------------|------------|----------|-------------------|--------------------|--------------------|
+| Linux    | `ip`         | `ss`       | `systemctl` | `df` | `free` | `uptime` |
+| Windows  | `ipconfig`   | `netstat`  | `sc` | `wmic` | `wmic` | `wmic` |
+| macOS    | `ifconfig`   | `lsof`     | not supported | `df` | `vm_stat` | `uptime` |
 
 ## netre.c (C version)
 This repository also includes a basic C implementation using the [Jansson](https://digip.org/jansson/) library for JSON handling.

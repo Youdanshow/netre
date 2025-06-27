@@ -647,72 +647,12 @@ static json_t *get_uptime(void) {
     return obj;
 }
 
-static json_t *scan_vulnerabilities(const char *target) {
-    json_t *obj = json_object();
-    json_t *results = json_array();
-    json_object_set_new(obj, "command", json_string("nmap -sV --script vulners 127.0.0.1"));
-    json_object_set_new(obj, "results", results);
-    if (!command_available("nmap")) {
-        json_object_set_new(obj, "error", json_string("nmap needs to be installed"));
-        return obj;
-    }
-    char cmd[256];
-    snprintf(cmd, sizeof(cmd), "nmap -sV --script vulners %s", target);
-    char *out = run_command(cmd);
-    if (!out) return obj;
-    char *saveptr_line = NULL;
-    char *line = strtok_r(out, "\n", &saveptr_line);
-    char current_port[32] = "";
-    int collecting = 0;
-    while (line) {
-        char *trim = line;
-        while (*trim == ' ' || *trim == '\t') trim++;
-        if (strncmp(trim, "| vulners:", 10) == 0) {
-            collecting = 1;
-            line = strtok_r(NULL, "\n", &saveptr_line);
-            continue;
-        }
-        if (collecting) {
-            if (*trim != '|') { collecting = 0; line = strtok_r(NULL, "\n", &saveptr_line); continue; }
-            char *content = trim + 1;
-            while (*content == ' ') content++;
-            char *parts[4];
-            int idx = 0;
-            char *saveptr_tok = NULL;
-            char *tok = strtok_r(content, " \t", &saveptr_tok);
-            while (tok && idx < 4) {
-                parts[idx++] = tok;
-                tok = strtok_r(NULL, " \t", &saveptr_tok);
-            }
-            if (idx >= 3 && strncmp(parts[0], "CVE-", 4) == 0) {
-                json_t *item = json_object();
-                json_object_set_new(item, "port", json_string(current_port));
-                json_object_set_new(item, "cve", json_string(parts[0]));
-                json_object_set_new(item, "cvss", json_string(parts[1]));
-                json_object_set_new(item, "link", json_string(parts[2]));
-                json_array_append_new(results, item);
-            }
-        } else {
-            if (strstr(trim, "/tcp") || strstr(trim, "/udp")) {
-                char *space = strchr(trim, ' ');
-                if (space) *space = '\0';
-                strncpy(current_port, trim, sizeof(current_port)-1);
-                current_port[sizeof(current_port)-1] = '\0';
-                char *slash = strchr(current_port, '/');
-                if (slash) *slash = '\0';
-            }
-        }
-        line = strtok_r(NULL, "\n", &saveptr_line);
-    }
-    free(out);
-    return obj;
-}
 
 int main(void) {
     json_t *root = json_object();
 
     fprintf(stderr, "loading...\n");
-    const int total = 7;
+    const int total = 6;
     int i = 0;
     double start = get_time_seconds();
 
@@ -727,8 +667,6 @@ int main(void) {
     json_object_set_new(root, "memory", get_memory_usage());
     print_progress(++i, total);
     json_object_set_new(root, "uptime", get_uptime());
-    print_progress(++i, total);
-    json_object_set_new(root, "vulnerabilities", scan_vulnerabilities("127.0.0.1"));
     print_progress(++i, total);
 
     double elapsed = get_time_seconds() - start;
