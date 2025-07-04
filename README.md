@@ -82,3 +82,17 @@ Run with:
 ```
 
 The output format matches the Python script, but features depend on the commands available on the host.
+
+## netre.sh (simple shell script)
+
+For a very small footprint, the repository provides `netre.sh`. This shell
+script just runs each platform-specific command in sequence and prints the raw
+output. It does not produce JSON or a progress bar but requires no extra
+dependencies.
+
+Run it with:
+
+```bash
+sh netre.sh
+```
+
