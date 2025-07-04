@@ -68,7 +68,7 @@ If a command used by the script is missing, that section will also include an
 
 ## netre.c (C version)
 This repository also includes a basic C implementation using the [Jansson](https://digip.org/jansson/) library for JSON handling.
-It gathers the same data as the Python script, including disk usage, memory statistics and uptime.
+It gathers the same data as the Python script, including disk usage, memory statistics, CPU usage and uptime.
 Execution time is measured with a monotonic clock so the printed duration reflects
 real wall-clock time rather than CPU usage.
 
@@ -91,8 +91,8 @@ The output format matches the Python script, but features depend on the commands
 
 For a very small footprint, the repository provides `netre.sh`. This shell
 script just runs each platform-specific command in sequence and prints the raw
-output. It does not produce JSON or a progress bar but requires no extra
-dependencies.
+output, including CPU usage information. It does not produce JSON or a progress
+bar but requires no extra dependencies.
 
 Run it with:
 

@@ -65,6 +65,19 @@ else
 fi
 
 echo
+# CPU usage
+echo "### CPU usage"
+if [ -f /proc/loadavg ]; then
+    cat /proc/loadavg
+elif command -v uptime >/dev/null 2>&1; then
+    uptime
+elif command -v wmic >/dev/null 2>&1; then
+    wmic cpu get loadpercentage
+else
+    echo "no cpu usage command"
+fi
+
+echo
 # Uptime
 echo "### Uptime"
 if command -v uptime >/dev/null 2>&1; then

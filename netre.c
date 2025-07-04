@@ -4,6 +4,7 @@
 #include <ctype.h>
 #include <jansson.h>
 #include <time.h>
+#include <unistd.h>
 #ifdef _WIN32
 #include <windows.h>
 #endif
@@ -583,6 +584,98 @@ static json_t *get_memory_usage(void) {
     return obj;
 }
 
+static json_t *get_cpu_usage(void) {
+    json_t *obj = json_object();
+    json_t *results = json_array();
+    json_object_set_new(obj, "results", results);
+    const char *cmd = "";
+#ifdef OS_LINUX
+    if (access("/proc/loadavg", F_OK) == 0) {
+        cmd = "cat /proc/loadavg";
+        json_object_set_new(obj, "command", json_string(cmd));
+        FILE *fp = fopen("/proc/loadavg", "r");
+        if (fp) {
+            double a, b, c;
+            if (fscanf(fp, "%lf %lf %lf", &a, &b, &c) == 3) {
+                char s1[16], s5[16], s15[16];
+                snprintf(s1, sizeof(s1), "%.2f", a);
+                snprintf(s5, sizeof(s5), "%.2f", b);
+                snprintf(s15, sizeof(s15), "%.2f", c);
+                json_t *item = json_object();
+                json_object_set_new(item, "1min", json_string(s1));
+                json_object_set_new(item, "5min", json_string(s5));
+                json_object_set_new(item, "15min", json_string(s15));
+                json_array_append_new(results, item);
+            }
+            fclose(fp);
+        }
+    } else
+#endif
+#if defined(OS_LINUX) || defined(OS_DARWIN)
+    {
+        cmd = "uptime";
+        json_object_set_new(obj, "command", json_string(cmd));
+        if (!command_available("uptime")) {
+            json_object_set_new(obj, "error", json_string("uptime needs to be installed"));
+            return obj;
+        }
+        char *out = run_command(cmd);
+        if (out) {
+            char *ptr = strstr(out, "load averages:");
+            if (!ptr) ptr = strstr(out, "load average:");
+            if (ptr) ptr = strchr(ptr, ':');
+            if (ptr) ptr++;
+            else ptr = out;
+            char *numbers[3];
+            int idx = 0;
+            char *saveptr = NULL;
+            char *tok = strtok_r(ptr, " ,\n", &saveptr);
+            while (tok && idx < 3) {
+                numbers[idx++] = tok;
+                tok = strtok_r(NULL, " ,\n", &saveptr);
+            }
+            if (idx == 3) {
+                json_t *item = json_object();
+                json_object_set_new(item, "1min", json_string(numbers[0]));
+                json_object_set_new(item, "5min", json_string(numbers[1]));
+                json_object_set_new(item, "15min", json_string(numbers[2]));
+                json_array_append_new(results, item);
+            }
+            free(out);
+        }
+    }
+#elif defined(OS_WINDOWS)
+    cmd = "wmic cpu get loadpercentage";
+    json_object_set_new(obj, "command", json_string(cmd));
+    if (!command_available("wmic")) {
+        json_object_set_new(obj, "error", json_string("wmic needs to be installed"));
+        return obj;
+    }
+    char *out = run_command(cmd);
+    if (out) {
+        char *line = strtok(out, "\n");
+        while (line) {
+            while (*line == ' ' || *line == '\t') line++;
+            if (*line && isdigit((unsigned char)*line)) {
+                char *end = line;
+                while (*end && isdigit((unsigned char)*end)) end++;
+                *end = '\0';
+                json_t *item = json_object();
+                json_object_set_new(item, "load_percentage", json_string(line));
+                json_array_append_new(results, item);
+                break;
+            }
+            line = strtok(NULL, "\n");
+        }
+        free(out);
+    }
+#else
+    json_object_set_new(obj, "command", json_string(""));
+    json_object_set_new(obj, "error", json_string("unsupported platform"));
+#endif
+    return obj;
+}
+
 static json_t *get_uptime(void) {
     json_t *obj = json_object();
     json_t *results = json_array();
@@ -652,7 +745,7 @@ int main(void) {
     json_t *root = json_object();
 
     fprintf(stderr, "loading...\n");
-    const int total = 6;
+    const int total = 7;
     int i = 0;
     double start = get_time_seconds();
 
@@ -665,6 +758,8 @@ int main(void) {
     json_object_set_new(root, "disk_usage", get_disk_usage());
     print_progress(++i, total);
     json_object_set_new(root, "memory", get_memory_usage());
+    print_progress(++i, total);
+    json_object_set_new(root, "cpu_usage", get_cpu_usage());
     print_progress(++i, total);
     json_object_set_new(root, "uptime", get_uptime());
     print_progress(++i, total);
