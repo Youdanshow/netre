@@ -2,7 +2,7 @@
 
 ## netre.py
 
-This Python script summarizes network and system information on the host machine. On Linux it relies on `ip`, `ss`, `systemctl`, `df`, `free` and `uptime`. On Windows it uses `ipconfig`, `netstat` and `wmic`, while macOS support falls back to `ifconfig`, `lsof`, `vm_stat` and `uptime`.
+This Python script summarizes network and system information on the host machine. On Linux it relies on `ip`, `ss`, `systemctl`, `df`, `free`, `/proc/loadavg` and `uptime`. On Windows it uses `ipconfig`, `netstat` and `wmic`, while macOS support falls back to `ifconfig`, `lsof`, `vm_stat` and `uptime`.
 
 
 Run it with:
@@ -43,6 +43,10 @@ collect the information and the corresponding results:
     "command": "free -h",
     "results": []
   },
+  "cpu_usage": {
+    "command": "cat /proc/loadavg",
+    "results": []
+  },
   "uptime": {
     "command": "uptime -p",
     "results": []
@@ -56,15 +60,15 @@ If a command used by the script is missing, that section will also include an
 
 ### Compatibility of commands
 
-| Platform | IP addresses (`ip`, `ipconfig`, `ifconfig`) | Open ports (`ss`, `netstat`, `lsof`) | Services (`systemctl`, `sc`) | Disk usage (`df`, `wmic`) | Memory (`free`, `wmic`, `vm_stat`) | Uptime (`uptime`, `wmic`) |
-|----------|--------------|------------|----------|-------------------|--------------------|--------------------|
-| Linux    | `ip`         | `ss`       | `systemctl` | `df` | `free` | `uptime` |
-| Windows  | `ipconfig`   | `netstat`  | `sc` | `wmic` | `wmic` | `wmic` |
-| macOS    | `ifconfig`   | `lsof`     | not supported | `df` | `vm_stat` | `uptime` |
+| Platform | IP addresses (`ip`, `ipconfig`, `ifconfig`) | Open ports (`ss`, `netstat`, `lsof`) | Services (`systemctl`, `sc`) | Disk usage (`df`, `wmic`) | Memory (`free`, `wmic`, `vm_stat`) | CPU usage (`/proc/loadavg`, `uptime`, `wmic`) | Uptime (`uptime`, `wmic`) |
+|----------|--------------|------------|----------|-------------------|-------------------|-------------------------------|--------------------|
+| Linux    | `ip`         | `ss`       | `systemctl` | `df` | `free` | `/proc/loadavg` | `uptime` |
+| Windows  | `ipconfig`   | `netstat`  | `sc` | `wmic` | `wmic` | `wmic` | `wmic` |
+| macOS    | `ifconfig`   | `lsof`     | not supported | `df` | `vm_stat` | `uptime` | `uptime` |
 
 ## netre.c (C version)
 This repository also includes a basic C implementation using the [Jansson](https://digip.org/jansson/) library for JSON handling.
-It gathers the same data as the Python script, including disk usage, memory statistics and uptime.
+It gathers the same data as the Python script, including disk usage, memory statistics, CPU usage and uptime.
 Execution time is measured with a monotonic clock so the printed duration reflects
 real wall-clock time rather than CPU usage.
 
@@ -87,8 +91,8 @@ The output format matches the Python script, but features depend on the commands
 
 For a very small footprint, the repository provides `netre.sh`. This shell
 script just runs each platform-specific command in sequence and prints the raw
-output. It does not produce JSON or a progress bar but requires no extra
-dependencies.
+output, including CPU usage information. It does not produce JSON or a progress
+bar but requires no extra dependencies.
 
 Run it with:
 

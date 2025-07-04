@@ -5,6 +5,7 @@ import shutil
 import sys
 import time
 import datetime
+import os
 from typing import List, Dict
 
 OS = platform.system()
@@ -316,6 +317,52 @@ def get_memory_usage():
     return result
 
 
+def get_cpu_usage():
+    command = ''
+    error = None
+    cpu = []
+    try:
+        if OS == 'Linux' and os.path.exists('/proc/loadavg'):
+            command = 'cat /proc/loadavg'
+            with open('/proc/loadavg') as f:
+                parts = f.read().strip().split()[:3]
+            if len(parts) == 3:
+                cpu.append({'1min': parts[0], '5min': parts[1], '15min': parts[2]})
+        elif OS in ('Linux', 'Darwin'):
+            command = 'uptime'
+            if not command_available('uptime'):
+                error = 'uptime needs to be installed'
+            else:
+                output = subprocess.check_output(['uptime'], text=True, stderr=subprocess.DEVNULL)
+                if 'load averages:' in output:
+                    load_str = output.split('load averages:')[1]
+                elif 'load average:' in output:
+                    load_str = output.split('load average:')[1]
+                else:
+                    load_str = ''
+                parts = [p.strip(',') for p in load_str.strip().split()][:3]
+                if len(parts) == 3:
+                    cpu.append({'1min': parts[0], '5min': parts[1], '15min': parts[2]})
+        elif OS == 'Windows':
+            command = 'wmic cpu get loadpercentage'
+            if not command_available('wmic'):
+                error = 'wmic needs to be installed'
+            else:
+                output = subprocess.check_output(['wmic', 'cpu', 'get', 'loadpercentage'], text=True, stderr=subprocess.DEVNULL)
+                for line in output.splitlines():
+                    line = line.strip()
+                    if line.isdigit():
+                        cpu.append({'load_percentage': line})
+                        break
+    except Exception:
+        pass
+
+    result = {'command': command, 'results': cpu}
+    if error:
+        result['error'] = error
+    return result
+
+
 def get_uptime():
     command = ''
     error = None
@@ -380,6 +427,7 @@ def main():
         ('running_services', get_running_services),
         ('disk_usage', get_disk_usage),
         ('memory', get_memory_usage),
+        ('cpu_usage', get_cpu_usage),
         ('uptime', get_uptime),
     ]
 
